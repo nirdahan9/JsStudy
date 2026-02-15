@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>== מול === (שוויון רופף מול שוויון קשיח)</title>
+		<link rel="stylesheet" href="styles.css" />
+	</head>
+	<body>
+		<main class="app">
+			<header class="header">
+				<h1><code>==</code> מול <code>===</code> ב־JavaScript</h1>
+				<p>
+					כאן תראה “שאלות מבלבלות” על השוואות. <code>==</code> עושה
+					<strong>המרת טיפוסים</strong> (coercion) לפני ההשוואה,
+					ו־<code>===</code> בודק גם ערך וגם טיפוס בלי המרות.
+				</p>
+			</header>
+
+			<section class="card" aria-labelledby="demo-title">
+				<h2 id="demo-title">תרגול אינטראקטיבי: הכי מבלבל שאפשר</h2>
+
+				<div class="controls">
+					<button id="shuffleBtn" class="btn" type="button">ערבב שאלות</button>
+					<button id="resetBtn" class="btn btn-secondary" type="button">איפוס פילטרים</button>
+				</div>
+
+				<div class="quizControls" aria-label="מצב חידון">
+					<label class="chip">
+						<input type="checkbox" id="quizMode" checked />
+						מצב חידון (מסתיר תשובות ומאפשר לענות T/F)
+					</label>
+					<button id="checkBtn" class="btn" type="button">בדוק תשובות</button>
+					<button id="revealBtn" class="btn btn-secondary" type="button">גלה תשובות</button>
+					<button id="clearAnswersBtn" class="btn btn-secondary" type="button">נקה תשובות</button>
+				</div>
+
+				<div class="filters" aria-label="פילטרים">
+					<label class="chip">
+						<input type="checkbox" id="onlyDifferent" />
+						הראה רק מקרים שבהם <code>==</code> שונה מ־<code>===</code>
+					</label>
+					<label class="chip">
+						<input type="checkbox" id="onlyTrue" />
+						הראה רק מקרים ש־<code>==</code> מחזיר <code>true</code>
+					</label>
+					<label class="chip">
+						<input type="checkbox" id="onlyFalse" />
+						הראה רק מקרים ש־<code>==</code> מחזיר <code>false</code>
+					</label>
+				</div>
+
+				<div class="tableWrap" role="region" aria-label="טבלת השוואות" tabindex="0">
+					<table class="table" aria-describedby="table-desc">
+						<caption id="table-desc">
+							כל שורה היא “שאלה”: מה תצפה שיקרה ב־<code>x == y</code> וב־<code>x === y</code>.
+						</caption>
+						<thead>
+							<tr>
+								<th>#</th>
+								<th><code>x</code></th>
+								<th><code>y</code></th>
+								<th class="col-ans"><span class="mono">הניחוש שלי</span><div class="hint">ענה T/F</div></th>
+								<th class="col-res"><code>x == y</code></th>
+								<th class="col-res"><code>x === y</code></th>
+								<th class="col-hint">הסבר קצר</th>
+							</tr>
+						</thead>
+						<tbody id="rows"></tbody>
+					</table>
+				</div>
+
+				<div class="result" role="status" aria-live="polite">
+					<div class="result-label">סיכום:</div>
+					<div id="summary" class="result-message">טוען שאלות…</div>
+				</div>
+
+				<details class="details">
+					<summary>כלל אצבע חשוב</summary>
+					<ul>
+						<li>כמעט תמיד עדיף להשתמש ב־<code>===</code> (וגם <code>!==</code>) כדי להימנע מהפתעות.</li>
+						<li>
+							<code>==</code> שימושי רק כשאתה <em>בכוונה</em> רוצה לקבל שוויון אחרי המרות
+							(למשל בדיקות מול <code>null</code> שכוללות גם <code>undefined</code>).
+						</li>
+					</ul>
+				</details>
+			</section>
+
+			<footer class="footer">
+				טיפ: אם משהו מפתיע אותך, נסה לשאול: “איזה טיפוס יש לכל צד?” ו“איזה המרות <code>==</code> עושה פה?”
+			</footer>
+		</main>
+
+		<script src="logic.js" defer></script>
+	</body>
+</html>

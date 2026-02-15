@@ -81,12 +81,50 @@ function makeCase(x, y, hint) {
 	return { x, y, hint };
 }
 
+function makeCaseSteps(x, y, steps) {
+	// steps: { loose: string, strict: string }
+	return { x, y, steps };
+}
+
+function typeLabel(v) {
+	if (v === null) return 'null';
+	if (Number.isNaN(v)) return 'NaN';
+	if (Object.is(v, -0)) return 'number(-0)';
+	if (typeof v === 'number') return 'number';
+	if (typeof v === 'string') return 'string';
+	if (typeof v === 'boolean') return 'boolean';
+	if (typeof v === 'bigint') return 'bigint';
+	if (typeof v === 'undefined') return 'undefined';
+	if (typeof v === 'symbol') return 'symbol';
+	if (typeof v === 'function') return 'function';
+	return 'object';
+}
+
+function defaultSteps(x, y) {
+	const tx = typeLabel(x);
+	const ty = typeLabel(y);
+	// לא מנסים לשחזר את כל האלגוריתם של spec אוטומטית — זה רק “הכוונה”.
+	return {
+		loose: `(${tx}) == (${ty}) → JavaScript עושה coercion (המרות) לפי הכללים, ואז משווה`,
+		strict: `(${tx}) === (${ty}) → אין המרות; אם הטיפוסים שונים ⇒ false, אחרת השוואת ערך/זהות`,
+	};
+}
+
 // הרבה דוגמאות “מבלבלות” + כאלה שמופיעות בטבלאות ידועות (כמו בצילום שלך)
 let cases = [
 	// null / undefined
-	makeCase(undefined, undefined, 'אותו ערך וטיפוס'),
-	makeCase(null, null, 'אותו ערך וטיפוס'),
-	makeCase(null, undefined, 'ב-== הם שווים, ב-=== לא'),
+	makeCaseSteps(undefined, undefined, {
+		loose: 'undefined == undefined → אותו פרימיטיב ⇒ true',
+		strict: 'undefined === undefined → אותו טיפוס ואותו ערך ⇒ true',
+	}),
+	makeCaseSteps(null, null, {
+		loose: 'null == null → אותו פרימיטיב ⇒ true',
+		strict: 'null === null → אותו טיפוס ואותו ערך ⇒ true',
+	}),
+	makeCaseSteps(null, undefined, {
+		loose: 'null == undefined → כלל מיוחד ב-==: null שווה רק ל-undefined ⇒ true',
+		strict: 'null === undefined → טיפוסים שונים (null vs undefined) ⇒ false',
+	}),
 	makeCase(undefined, 0, 'undefined כמעט אף פעם לא “מומר” ל-0'),
 	makeCase(null, 0, 'null מומר ל-0 ב-== רק מול מספרים'),
 
@@ -119,14 +157,32 @@ let cases = [
 	makeCase(-0, 0, 'אותו דבר כמו מעל'),
 
 	// arrays/objects
-	makeCase([], [], 'שני מערכים שונים בזיכרון => false'),
-	makeCase([], 0, '[] -> "" -> 0 ב-=='),
-	makeCase([0], 0, '[0] -> "0" -> 0'),
-	makeCase([1], 1, '[1] -> "1" -> 1'),
-	makeCase([1, 2], '1,2', 'מערך -> "1,2"'),
+	makeCaseSteps([], [], {
+		loose: '[] == [] → שני אובייקטים שונים בזיכרון ⇒ false (אין coercion שמאחד אותם)',
+		strict: '[] === [] → גם כאן: אובייקטים שונים ⇒ false',
+	}),
+	makeCaseSteps([], 0, {
+		loose: '[] == 0 → ToPrimitive([]) => "" → ToNumber("") => 0 → 0 == 0 ⇒ true',
+		strict: '[] === 0 → טיפוסים שונים (object vs number) ⇒ false',
+	}),
+	makeCaseSteps([0], 0, {
+		loose: '[0] == 0 → ToPrimitive([0]) => "0" → ToNumber("0") => 0 → 0 == 0 ⇒ true',
+		strict: '[0] === 0 → object vs number ⇒ false',
+	}),
+	makeCaseSteps([1], 1, {
+		loose: '[1] == 1 → ToPrimitive([1]) => "1" → ToNumber("1") => 1 → 1 == 1 ⇒ true',
+		strict: '[1] === 1 → object vs number ⇒ false',
+	}),
+	makeCaseSteps([1, 2], '1,2', {
+		loose: '[1,2] == "1,2" → ToPrimitive([1,2]) => "1,2" → "1,2" == "1,2" ⇒ true',
+		strict: '[1,2] === "1,2" → object vs string ⇒ false',
+	}),
 	makeCase([1, 2], '1, 2', 'שימו לב לרווח במחרוזת'),
 	makeCase([1, 2], [1, 2], 'אותו תוכן, אבל אובייקטים שונים => false'),
-	makeCase({}, '[object Object]', '{} -> "[object Object]"'),
+	makeCaseSteps({}, '[object Object]', {
+		loose: '{} == "[object Object]" → ToPrimitive({}) => "[object Object]" → השוואת מחרוזות ⇒ true',
+		strict: '{} === "[object Object]" → object vs string ⇒ false',
+	}),
 	makeCase({}, {}, 'אובייקטים שונים => false'),
 	makeCase({ valueOf: () => 1 }, 1, 'valueOf יכול להשפיע על coercion'),
 	makeCase({ toString: () => '0' }, 0, 'toString יכול להשפיע על coercion'),
@@ -142,10 +198,22 @@ let cases = [
 	makeCase(function f() {}, function g() {}, 'פונקציות שונות => false'),
 
 	// BigInt (מקרים שזורקים)
-	makeCase(1n, 1, 'בדרך כלל: BigInt מול Number ב-== עשוי לזרוק אם לא ניתן להשוות'),
-	makeCase(0n, 0, 'אותו רעיון — תלוי המרה/בדיקה'),
-	makeCase(1n, '1', 'BigInt מול מחרוזת מספרית — מעניין לראות'),
-	makeCase(10n, '10.0', 'מחרוזת לא BigInt טהור לרוב תגרום ל-false/throws'),
+	makeCaseSteps(1n, 1, {
+		loose: '1n == 1 → השוואת BigInt מול Number ב-==: כש-1 הוא מספר שלם “תואם”, ההשוואה יכולה לצאת true',
+		strict: '1n === 1 → bigint vs number ⇒ false',
+	}),
+	makeCaseSteps(0n, 0, {
+		loose: '0n == 0 → אותו רעיון כמו מעל ⇒ true',
+		strict: '0n === 0 → bigint vs number ⇒ false',
+	}),
+	makeCaseSteps(1n, '1', {
+		loose: '1n == "1" → "1" מומר ל-Number 1 → 1n == 1 ⇒ true',
+		strict: '1n === "1" → bigint vs string ⇒ false',
+	}),
+	makeCaseSteps(10n, '10.0', {
+		loose: '10n == "10.0" → "10.0" מומר למספר 10 (Number), אבל BigInt מול Number “לא תמיד תואם” ⇒ כאן יוצא false',
+		strict: '10n === "10.0" → bigint vs string ⇒ false',
+	}),
 
 	// edge-y primitives
 	makeCase('', false, '"" -> 0, false -> 0'),
@@ -153,6 +221,9 @@ let cases = [
 	makeCase('\t', 0, 'tab -> 0'),
 	makeCase('\r\n', 0, 'CRLF -> 0'),
 ];
+
+// מאפשר בדיקות אוטומטיות (Node) בלי דפדפן
+globalThis.cases = cases;
 
 function shuffleInPlace(arr) {
 	for (let i = arr.length - 1; i > 0; i--) {
@@ -184,6 +255,7 @@ function quizCheckedClassOn(on) {
 }
 
 function render() {
+	if (!rowsTbody || !summaryEl) return;
 	const quizMode = !!quizModeEl?.checked;
 	quizClassOn(quizMode && !revealed);
 	quizCheckedClassOn(quizMode && !revealed && quizChecked);
@@ -262,9 +334,18 @@ function render() {
 					<td class="col-ans">${answerInputs}</td>
 					<td class="col-res">${badge(c.loose)}${diffBadge}</td>
 					<td class="col-res">${badge(c.strict)}</td>
-					<td class="hint col-hint ${answered && quizChecked ? 'showHint' : ''}">${
-						answered && quizChecked ? c.hint ?? '' : ''
-					}</td>
+					<td class="hint col-hint ${answered && quizChecked ? 'showHint' : ''}">${(() => {
+						if (!(answered && quizChecked)) return '';
+						const s = c.steps ?? defaultSteps(c.x, c.y);
+						const extra = c.hint ? `<div style="margin-top:6px;">${c.hint}</div>` : '';
+						return `
+							<div class="mono" style="font-weight:800;">== (הרצה אחורית)</div>
+							<div>${s.loose}</div>
+							<div class="mono" style="font-weight:800; margin-top:8px;">=== (הרצה אחורית)</div>
+							<div>${s.strict}</div>
+							${extra}
+						`;
+					})()}</td>
 				</tr>
 			`;
 		})
